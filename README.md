@@ -10,7 +10,7 @@ receiver or anywhere on a connection's path (for example, an OpenWrt
 home border router could easily monitor the RTT of all traffic to and
 from the Internet).
 
-For more information on pping, please visit http://pollere.net/pping
+For more information on pping, please visit http://pollere.net/pping.html
 
 ## Compiling ##
 
