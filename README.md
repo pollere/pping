@@ -62,12 +62,12 @@ interface" in `man pcap`). It can always be run as root via `sudo`.
 
 ## Examples ##
 
-`pping -i` _interface_ monitors tcp traffic on _interface_ and reports
+`pping -i` _interface_ `  ` monitors tcp traffic on _interface_ and reports
 each packet's RTT to stdout. For example
    `pping -i en0    ` (Mac OS)
    `pping -i wlp2s0 ` (Ubuntu 17.04)
 
-`pping -r _pcapfile_` will print the RTT of tcp packets captured
+`pping -r` _pcapfile_ `  ` prints the RTT of tcp packets captured
 with _tcpdump_ or _wireshark_ to _pcapfile_.
 
 There are a few flags that control how long pping will capture and/or how
