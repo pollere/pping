@@ -275,22 +275,19 @@ static void process_packet(const Packet& pkt)
             fr->min = tm;       //track minimum
         }
 
-        std::stringstream ols;  // to build outputline string
-        ols << std::fixed << std::setprecision(6);
         if (machineReadable) {
-            ols << d;
-            ols << " " << tm;
-            ols << " " << fr->min;
+            std::cout << d;
+            std::cout << " " << tm;
+            std::cout << " " << fr->min;
         } else {
             char tbuff[80];
             struct tm* ptm = std::localtime(&result);
             strftime(tbuff, 80, "%T", ptm);
-            ols << std::string(tbuff);
-            ols << " " << fmtTimeDiff(tm);
-            ols << " " << fmtTimeDiff(fr->min);
+            std::cout << std::string(tbuff);
+            std::cout << " " << fmtTimeDiff(tm);
+            std::cout << " " << fmtTimeDiff(fr->min);
         }
-        ols << " " << fstr << "\n";
-        std::cout << ols.str();
+        std::cout << " " << fstr << std::endl;
     }
 }
 
@@ -445,6 +442,8 @@ int main(int argc, char* const* argv)
         usage(argv[0]);
         exit(1);
     }
+    std::cout << std::fixed;
+    std::cout.precision(6);
 
     BaseSniffer* snif;
     {
