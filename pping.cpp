@@ -276,18 +276,16 @@ static void process_packet(const Packet& pkt)
         }
 
         if (machineReadable) {
-            std::cout << d;
-            std::cout << " " << tm;
-            std::cout << " " << fr->min;
+            printf("%lld.%06d %.6f %.6f", int64_t(d + offTm),
+                    int((d - floor(d)) * 1e6), tm, fr->min);
         } else {
             char tbuff[80];
             struct tm* ptm = std::localtime(&result);
             strftime(tbuff, 80, "%T", ptm);
-            std::cout << std::string(tbuff);
-            std::cout << " " << fmtTimeDiff(tm);
-            std::cout << " " << fmtTimeDiff(fr->min);
+            printf("%s %s %s", tbuff, fmtTimeDiff(tm).c_str(),
+                   fmtTimeDiff(fr->min).c_str());
         }
-        std::cout << " " << fstr << std::endl;
+        printf(" %s\n", fstr.c_str());
     }
 }
 
