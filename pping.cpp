@@ -100,6 +100,7 @@ static double time_to_run;      // how many seconds to capture (0=no limit)
 static int maxPackets;          // max packets to capture (0=no limit)
 static int64_t offTm = -1;      // first packet capture time (used when printing
                                         // relative times)
+static bool liveInp = false;
 static bool machineReadable = false; // machine or human readable output
 static double capTm, startm;        // (in seconds)
 static int pktCnt, not_tcp, no_TS, not_v4or6, uniDir;
@@ -286,6 +287,7 @@ static void process_packet(const Packet& pkt)
                    fmtTimeDiff(fr->min).c_str());
         }
         printf(" %s\n", fstr.c_str());
+        fflush(stdout);
     }
 }
 
@@ -412,7 +414,6 @@ static void help(const char* pname) {
 
 int main(int argc, char* const* argv)
 {
-    bool liveInp = false;
     std::string fname;
     if (argc <= 1) {
         help(argv[0]);
@@ -440,8 +441,6 @@ int main(int argc, char* const* argv)
         usage(argv[0]);
         exit(1);
     }
-    std::cout << std::fixed;
-    std::cout.precision(6);
 
     BaseSniffer* snif;
     {
