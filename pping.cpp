@@ -55,6 +55,8 @@
  
   ***********************************************************************/
 
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
 #include <getopt.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -291,7 +293,7 @@ static void process_packet(const Packet& pkt)
         }
 
         if (machineReadable) {
-            printf("%lld.%06d %.6f %.6f", int64_t(d + offTm),
+            printf("%" PRId64 ".%06d %.6f %.6f", int64_t(d + offTm),
                     int((d - floor(d)) * 1e6), tm, fr->min);
         } else {
             char tbuff[80];
