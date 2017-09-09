@@ -55,6 +55,8 @@
  
   ***********************************************************************/
 
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
 #include <getopt.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -90,7 +92,7 @@ class flowRec
 static std::unordered_map<std::string, double> tsTm;
 static std::unordered_map<std::string, flowRec*> flows;
 
-#define SNAP_LEN 128                // maximum bytes per packet to capture
+#define SNAP_LEN 144
 static double tsvalMaxAge = 10.;    // limit age of TSvals to use
 static double flowMaxIdle = 300.;   // flow idle time until flow forgotten
 static double sumInt = 10.;         // how often (sec) to print summary line
@@ -98,15 +100,17 @@ static int maxFlows = 10000;
 static int flowCnt;
 static double time_to_run;      // how many seconds to capture (0=no limit)
 static int maxPackets;          // max packets to capture (0=no limit)
-static int64_t offTm = -1;      // first packet capture time (used when printing
-                                        // relative times)
-static bool liveInp = false;
+static int64_t offTm = -1;      // first packet capture time (used to
+                                // avoid precision loss when 52 bit timestamp
+                                // normalized into FP double 47 bit mantissa)
 static bool machineReadable = false; // machine or human readable output
 static double capTm, startm;        // (in seconds)
 static int pktCnt, not_tcp, no_TS, not_v4or6, uniDir;
 static std::string localIP;         // ignore pp through this address
 static bool filtLocal = true;
 static std::string filter("tcp");    // default bpf filter
+static int64_t flushInt = 1 << 20;  // stdout flush interval (~uS)
+static int64_t nextFlush;       // next stdout flush time (~uS)
 
 
 // save capture time of packet using its flow + TSval as key.  If key
@@ -175,6 +179,18 @@ static std::string fmtTimeDiff(double dt)
     char buf[10];
     snprintf(buf, sizeof(buf), fmt, dt, SIprefix);
     return buf;
+}
+
+/*
+ * return (approximate) time in a 64bit fixed point integer with the
+ * binary point at bit 20. High accuracy isn't needed (this time is
+ * only used to control output flushing) so time is stretched ~5%
+ * ((1024^2)/1e6) to avoid a 64 bit multiply.
+ */
+static int64_t clock_now(void) {
+    struct timeval tv;
+    gettimeofday(&tv, nullptr);
+    return (int64_t(tv.tv_sec) << 20) | tv.tv_usec;
 }
 
 static void process_packet(const Packet& pkt)
@@ -277,7 +293,7 @@ static void process_packet(const Packet& pkt)
         }
 
         if (machineReadable) {
-            printf("%lld.%06d %.6f %.6f", int64_t(d + offTm),
+            printf("%" PRId64 ".%06d %.6f %.6f", int64_t(d + offTm),
                     int((d - floor(d)) * 1e6), tm, fr->min);
         } else {
             char tbuff[80];
@@ -287,7 +303,11 @@ static void process_packet(const Packet& pkt)
                    fmtTimeDiff(fr->min).c_str());
         }
         printf(" %s\n", fstr.c_str());
-        fflush(stdout);
+        int64_t now = clock_now();
+        if (now - nextFlush >= 0) {
+            nextFlush = now + flushInt;
+            fflush(stdout);
+        }
     }
 }
 
@@ -414,6 +434,7 @@ static void help(const char* pname) {
 
 int main(int argc, char* const* argv)
 {
+    bool liveInp = false;
     std::string fname;
     if (argc <= 1) {
         help(argv[0]);
@@ -468,6 +489,12 @@ int main(int argc, char* const* argv)
             exit(EXIT_FAILURE);
         }
     }
+    if (liveInp && machineReadable) {
+        // output every 100ms when piping to analysis/display program
+        flushInt /= 10;
+    }
+    nextFlush = clock_now() + flushInt;
+
     double nxtSum = 0., nxtClean = 0.;
 
     for (const auto& packet : *snif) {
