@@ -76,7 +76,7 @@ using namespace Tins;
 
 class flowRec
 {
-   public:
+  public:
     explicit flowRec(std::string nm)
     {
         flowname = std::move(nm);
@@ -85,14 +85,32 @@ class flowRec
 
     std::string flowname;
     double last_tm{};
-    double min{-1.};  // current min value for capturepoint-to-source RTT
-    bool revFlow{};
+    double min{1e30};   // current min value for capturepoint-to-source RTT
+    double bytesSnt{};  // number of bytes sent through CP toward dst
+    double bytesDep{};  // set on RTT sample computation for the stream for which
+                        // this flow is the "forward" or outbound-from-mp direction.
+                        // It is the value of this bytes_snt when a TSval entry was made
+                        // and is set when an RTT is computed for this stream by getting a
+                        // match on TSval entry by reverse flow, i.e. the number of bytes
+                        // departed through CP the last time an RTT was computed for this stream
+    bool revFlow{};             //inidcates if a reverse flow has been seen
 };
 
-static std::unordered_map<std::string, double> tsTm;
-static std::unordered_map<std::string, flowRec*> flows;
+class tsInfo
+{
+  public:
+    explicit tsInfo(double tm, double f, double d)
+        : t{tm}, fBytes{f}, dBytes{d} {};
+    ~tsInfo() {};
+    double t;       //wall clock time of new TSval pkt arrival
+    double fBytes;  //total bytes of flow through CP including this pkt
+    double dBytes;  //total bytes of in
+};
 
-#define SNAP_LEN 144
+static std::unordered_map<std::string, flowRec*> flows;
+static std::unordered_map<std::string, tsInfo*> tsTbl;
+
+#define SNAP_LEN 144                // maximum bytes per packet to capture
 static double tsvalMaxAge = 10.;    // limit age of TSvals to use
 static double flowMaxIdle = 300.;   // flow idle time until flow forgotten
 static double sumInt = 10.;         // how often (sec) to print summary line
@@ -121,13 +139,15 @@ static int64_t nextFlush;       // next stdout flush time (~uS)
 // ending tcp_seq to match against returned tcp_ack) but this can
 // substantially increase the state burden for a small improvement.
 
-static inline bool addTS(const std::string& key, double tm)
+static inline void addTS(const std::string& key, tsInfo* ti)
 {
-    if (tsTm.count(key) == 0) {
-        tsTm.emplace(key, tm);
-        return true;
+#ifdef __cpp_lib_unordered_map_try_emplace
+    tsTbl.try_emplace(key, ti);
+#else
+    if (tsTbl.count(key) == 0) {
+        tsTbl.emplace(key, ti);
     }
-    return false;
+#endif
 }
 
 // A packet's ECR (timestamp echo reply) should match the TSval of some
@@ -145,17 +165,14 @@ static inline bool addTS(const std::string& key, double tm)
 //  a) longer than the largest time between TSval ticks
 //  b) longer than longest queue wait packets are expected to experience
 
-static inline double getTStm(const std::string& key)
+static inline tsInfo* getTStm(const std::string& key)
 {
-    if (tsTm.count(key) == 0) {
-        return -1.0;
+    try {
+        tsInfo* ti = tsTbl.at(key);
+        return ti;
+    } catch (std::out_of_range) {
+        return nullptr;
     }
-    double tm = tsTm.at(key);
-    if (tm >= 0.) {
-        // flag as used once, do not reuse
-        tsTm[key] = -tsTm[key];
-    }
-    return tm;
 }
 
 static std::string fmtTimeDiff(double dt)
@@ -278,29 +295,41 @@ static void process_packet(const Packet& pkt)
         return;
     }
 
+    double arr_fwd = fr->bytesSnt + pkt.pdu()->size();
+    fr->bytesSnt = arr_fwd;
     if (!filtLocal || (localIP != ipdstr)) {
-        addTS(fstr + "+" + std::to_string(rcv_tsval), capTm);
+        addTS(fstr + "+" + std::to_string(rcv_tsval),
+              new tsInfo(capTm, arr_fwd, fr->bytesDep));
     }
-
-    double d = getTStm(dststr + "+" + srcstr + "+" +
-                        std::to_string(rcv_tsecr));
-    if (d > 0.0) {
+    tsInfo* ti = getTStm(dststr + "+" + srcstr + "+" +
+                         std::to_string(rcv_tsecr));
+    if (ti && ti->t > 0.0) {
 	// this packet is the return "pping" --
         // process it for packet's src
-        double tm = capTm - d;
-        if (fr->min < 0. || fr->min > tm) {
-            fr->min = tm;       //track minimum
+        double t = ti->t;
+        double rtt = capTm - t;
+        if (fr->min > rtt) {
+            fr->min = rtt;       //track minimum
         }
+        double fBytes = ti->fBytes;
+        double dBytes = ti->dBytes;
+        flows.at(dststr + "+" + srcstr)->bytesDep = fBytes;
 
         if (machineReadable) {
-            printf("%" PRId64 ".%06d %.6f %.6f", int64_t(d + offTm),
-                    int((d - floor(d)) * 1e6), tm, fr->min);
+            printf("%" PRId64 ".%06d %.6f %.6f %.0f %.0f %.0f",
+                    int64_t(t + offTm), int((t - floor(t)) * 1e6),
+                    rtt, fr->min, fBytes, dBytes, arr_fwd);
         } else {
             char tbuff[80];
             struct tm* ptm = std::localtime(&result);
             strftime(tbuff, 80, "%T", ptm);
-            printf("%s %s %s", tbuff, fmtTimeDiff(tm).c_str(),
+#ifdef notyet
+            printf("%s %s %s %d", tbuff, fmtTimeDiff(rtt).c_str(),
+                   fmtTimeDiff(fr->min).c_str(), (int)(fBytes - dBytes));
+#else
+            printf("%s %s %s", tbuff, fmtTimeDiff(rtt).c_str(),
                    fmtTimeDiff(fr->min).c_str());
+#endif
         }
         printf(" %s\n", fstr.c_str());
         int64_t now = clock_now();
@@ -308,6 +337,8 @@ static void process_packet(const Packet& pkt)
             nextFlush = now + flushInt;
             fflush(stdout);
         }
+        ti->t = -t;     //leaves an entry in the TS table to avoid saving this
+                        // TSval again, mark it negative to indicate it's been used
     }
 }
 
@@ -315,9 +346,10 @@ static void cleanUp(double n)
 {
     // erase entry if its TSval was seen more than tsvalMaxAge
     // seconds in the past. 
-    for (auto it = tsTm.begin(); it != tsTm.end();) {
-        if (capTm - std::abs(it->second) > tsvalMaxAge) {
-            it = tsTm.erase(it);
+    for (auto it = tsTbl.begin(); it != tsTbl.end();) {
+        if (capTm - std::abs(it->second->t) > tsvalMaxAge) {
+            delete it->second;
+            it = tsTbl.erase(it);
         } else {
             ++it;
         }
