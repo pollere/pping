@@ -87,6 +87,8 @@ class flowRec
     double last_tm{};
     double min{1e30};   // current min value for capturepoint-to-source RTT
     double bytesSnt{};  // number of bytes sent through CP toward dst
+                        // inbound-to-CP, or return, direction
+    double lstBytesSnt{};   //value of bytesSnt for flow at previous pping printing
     double bytesDep{};  // set on RTT sample computation for the stream for which
                         // this flow is the "forward" or outbound-from-mp direction.
                         // It is the value of this bytes_snt when a TSval entry was made
@@ -313,12 +315,14 @@ static void process_packet(const Packet& pkt)
         }
         double fBytes = ti->fBytes;
         double dBytes = ti->dBytes;
+        double pBytes = arr_fwd - fr->lstBytesSnt;
+        fr->lstBytesSnt = arr_fwd;
         flows.at(dststr + "+" + srcstr)->bytesDep = fBytes;
 
         if (machineReadable) {
             printf("%" PRId64 ".%06d %.6f %.6f %.0f %.0f %.0f",
                     int64_t(t + offTm), int((t - floor(t)) * 1e6),
-                    rtt, fr->min, fBytes, dBytes, arr_fwd);
+                    rtt, fr->min, fBytes, dBytes, pBytes);
         } else {
             char tbuff[80];
             struct tm* ptm = std::localtime(&result);
