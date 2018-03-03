@@ -1,4 +1,4 @@
-# pping (pollere passive ping)
+# pping (passive ping)
 
 _pping_ is a linux/macOS/BSD command line tool to measure network
 latency via passive monitoring of active connections.  Unlike _ping_,
@@ -13,6 +13,8 @@ from the Internet).
 For more information on pping, please visit http://pollere.net/pping.html
 
 ## Compiling ##
+
+See the docker/ directory for a one-liner to get you binaries, or continue below.
 
 ### Prerequisites
 
