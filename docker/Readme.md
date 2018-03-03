@@ -15,7 +15,7 @@ In the interests of saving you a few hours getting pping running, I've scripted 
 
 Only Linux binaries are currently scripted, and the only dependency is Docker. Compiled binaries and libraries are dropped in the current directory.
 
-Some rudimentary help is built in to get you off to a running start adding support for more build environments or platforms. This was inspired by the build not working on my default environment - build statically on Ubuntu 16.04 and copying over the binaries solved the problem.
+Some rudimentary help is built in to get you off to a running start adding support for more build environments or platforms. This was inspired by the build not working on my default environment - a static build using Ubuntu 16.04 in Docker and copying over the binaries solved the problem.
 
 You can try other build environments by playing around with the Dockerfile. 
 
@@ -24,7 +24,7 @@ The build scripts currently does the following:
 * then creates a basic image with the right dependencies. (go.sh) 
 * mounts the current directory inside a docker container based on the image, and runs the associated build script. 
 
-The docker container starts up with the build-static.sh or build-dynamic.sh scripts. Docker doesn't elegantly allow you to change things without creating new containers, so to keep things simple you can simply edit the build-\*.sh script and then docker start -i (interactive) the image to get a console in a different build environment. 
+The docker container starts up with the build.sh script. Docker doesn't elegantly allow you to change things without creating new containers, so to keep things simple you can simply edit build.sh script and then docker start -i (interactive) the image to change what it does when it starts.
 
 *Having a docker CMD (start command) that's on a mounted volume, of course goes against everything the docker developers stand for and will make them run into walls and jump off cliffs because it can break things. Let's just say doing it like this keeps the rebel in me, who doesn't like getting told what to do, very happy and alive. #MDFA making devops fun again. **And importantly to me, this way saves a lot of time, space and effort.**  :-p*
  
