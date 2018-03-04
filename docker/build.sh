@@ -13,8 +13,8 @@ false && ( #sed this to false to disable debugging... and don't use those words 
  exit 1
 ); 
 
+echo Building tins...
 if [ \! -d /usr/src/build ]; then
- echo Building tins...
  mkdir /usr/src/build
  cd /usr/src/build
  if [ "$BUILD" = "static" ]; then
