@@ -1,5 +1,5 @@
 #!/bin/sh 
-[ -z "$1" ] && B=dynamic || B=static
+[ "$1" = "static" ] && B=static || B=dynamic
 E=docker-container-$B.id
 ./get.sh 
 echo Building "$B"ally...
@@ -11,13 +11,15 @@ cp pping pping.old
 rm dns-stats pping
 echo Building new ones...
 I=`cut -d: -f2 docker-image.id`
-[ -e $E ] && (
- docker ps -a|grep `cat $E` && docker start -i `cat $E`
-) || ( 
+D=`cat $E`
+if docker ps -a --no-trunc|grep $D; then
+  docker start -i $D 
+else 
  [ -e $E ] && rm $E
  sed -i s@true@false@ build.sh 
- docker run --cidfile $E -v "$(pwd)/..":/target -e "BUILD=$B" -ti $I /target/docker/build.sh )
-D=`cat $E`
+ docker run --cidfile $E -v "$(pwd)/..":/target -e "BUILD=$B" -ti $I /target/docker/build.sh 
+ D=`cat $E`
+fi
 ls -l dns-stats pping && echo "Done!" || echo "Failed :-("
 echo "# For interactive build environment console:"
 echo "sed -i s@false@true@ build.sh; docker start -i $D"

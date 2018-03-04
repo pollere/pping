@@ -44,3 +44,7 @@ And then try it out:
 
     # ip link # find the interface you want to monitor, then...
     # sudo ./pping -i eth0 -f "not tcp port 22"
+
+#### Footnote
+
+Docker has gotten some new features since I last used it... which makes "the docker way" more palatable. So you may wonder why I'm not just using a Dockerfile for everythingi and getting rid of the volume. I could... initially docker was touted as a way to make builds portable. That's what I'm using it for. Portable LOCAL builds. I like the fact that I can edit and work from my local git repository without needing it needlessly duplicated into a container. If the container isn't on my local machine, sure. Maybe I'll try that next time.
