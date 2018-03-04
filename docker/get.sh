@@ -1,3 +1,3 @@
 #!/bin/sh
 echo Getting libtins...
-[ -n libtins ] && git clone --depth=1 https://github.com/mfontanini/libtins.git
+[ -d libtins ] || git clone --depth=1 https://github.com/mfontanini/libtins.git
