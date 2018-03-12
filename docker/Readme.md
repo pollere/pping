@@ -26,7 +26,7 @@ The build scripts currently does the following:
 
 The docker container starts up with the build.sh script. Docker doesn't elegantly allow you to change things without creating new containers, so to keep things simple you can simply edit build.sh script and then docker start -i (interactive) the image to change what it does when it starts.
 
-*Having a docker CMD (start command) that's on a mounted volume, of course goes against everything the docker developers stand for and will make them run into walls and jump off cliffs because it can break things. Let's just say doing it like this keeps the rebel in me, who doesn't like getting told what to do, very happy and alive. #MDFA making devops fun again. **And importantly to me, this way saves a lot of time, space and effort.**  :-p*
+*Having a docker CMD (start command) that's on a mounted volume, of course goes against everything the docker developers stand for. Docker has matured, maybe next time I'll do it differently. For now **this way saves a lot of time, space and effort.**  :-p*
  
 Update: Look! Binaries! They may or may not work... they work on my machines... I have accidentally committed them from my build. 
 
@@ -47,4 +47,4 @@ And then try it out:
 
 #### Footnote
 
-Docker has gotten some new features since I last used it... which makes "the docker way" more palatable. So you may wonder why I'm not just using a Dockerfile for everything and getting rid of the volume. I could... initially docker was touted as a way to make builds portable. That's what I'm using it for. Portable LOCAL builds. I like the fact that I can edit and work from my local git repository without needing it needlessly duplicated into a container. If the container isn't on my local machine, sure. Maybe I'll try that next time.
+Docker has gotten some new features since I last used it... which makes "the docker way" more palatable. So you may wonder why I'm not just using a Dockerfile for everything and getting rid of the volume. I could... initially docker was touted as a way to make builds portable. That's what I'm using it for. Portable LOCAL builds. I like the fact that I can edit and work from my local git repository without needing it needlessly duplicated into a container. Although, "the docker way" will work even if the container isn't on my local machine, so maybe I'll do it that way next time.
