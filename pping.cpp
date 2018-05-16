@@ -321,7 +321,7 @@ static void process_packet(const Packet& pkt)
 
         if (machineReadable) {
             printf("%" PRId64 ".%06d %.6f %.6f %.0f %.0f %.0f",
-                    int64_t(t + offTm), int((t - floor(t)) * 1e6),
+                    int64_t(capTm + offTm), int((capTm - floor(capTm)) * 1e6),
                     rtt, fr->min, fBytes, dBytes, pBytes);
         } else {
             char tbuff[80];
