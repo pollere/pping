@@ -133,7 +133,6 @@ static std::string filter("tcp");    // default bpf filter
 static int64_t flushInt = 1 << 20;  // stdout flush interval (~uS)
 static int64_t nextFlush;       // next stdout flush time (~uS)
 
-static bool gINTERRUPTED = false; // Has program caught any OS signals
 
 // save capture time of packet using its flow + TSval as key.  If key
 // exists, don't change it.  The same TSval may appear on multiple
@@ -475,8 +474,13 @@ static void help(const char* pname) {
 ;
 }
 
+static BaseSniffer* snif = nullptr;
+
 static void signalHandler(int sigVal) {
-    gINTERRUPTED = true;
+    if (snif) {
+        snif->stop_sniff();
+        std::cout << std::endl;
+    }
 }
 
 int main(int argc, char* const* argv)
@@ -518,7 +522,6 @@ int main(int argc, char* const* argv)
         exit(1);
     }
 
-    BaseSniffer* snif = nullptr;
     {
         SnifferConfiguration config;
         config.set_filter(filter);
@@ -582,9 +585,6 @@ int main(int argc, char* const* argv)
             cleanUp(capTm);  // get rid of stale entries
             nxtClean = capTm + tsvalMaxAge;
         }
-
-        if (gINTERRUPTED)
-            break;
     }
 
     // Force clean-up of all data structures by adding to capTm
