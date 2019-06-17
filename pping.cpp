@@ -72,6 +72,8 @@
 #include <cmath>
 #include "tins/tins.h"
 #include <signal.h>
+#include <thread>
+#include <chrono>
 
 using namespace Tins;
 
@@ -130,8 +132,7 @@ static int pktCnt, not_tcp, no_TS, not_v4or6, uniDir;
 static std::string localIP;         // ignore pp through this address
 static bool filtLocal = true;
 static std::string filter("tcp");    // default bpf filter
-static int64_t flushInt = 1 << 20;  // stdout flush interval (~uS)
-static int64_t nextFlush;       // next stdout flush time (~uS)
+static int64_t flushInt = 1000000;  // stdout flush interval (~uS)
 
 
 // save capture time of packet using its flow + TSval as key.  If key
@@ -206,21 +207,9 @@ static std::string fmtTimeDiff(double dt)
     return buf;
 }
 
-/*
- * return (approximate) time in a 64bit fixed point integer with the
- * binary point at bit 20. High accuracy isn't needed (this time is
- * only used to control output flushing) so time is stretched ~5%
- * ((1024^2)/1e6) to avoid a 64 bit multiply.
- */
-static int64_t clock_now(void) {
-    struct timeval tv;
-    gettimeofday(&tv, nullptr);
-    return (int64_t(tv.tv_sec) << 20) | tv.tv_usec;
-}
-
 static void process_packet(const Packet& pkt)
 {
-    u_int32_t rcv_tsval, rcv_tsecr;
+    u_int32_t rcv_tsval = 0, rcv_tsecr = 0;
     std::string srcstr, dststr, ipsstr, ipdstr;
 
     pktCnt++;
@@ -315,7 +304,7 @@ static void process_packet(const Packet& pkt)
 	// this packet is the return "pping" --
         // process it for packet's src
         double t = ti->t;
-        double rtt = capTm - t;
+        double rtt = capTm - t; // RTT of src to capture point
         if (fr->min > rtt) {
             fr->min = rtt;       //track minimum
         }
@@ -342,11 +331,6 @@ static void process_packet(const Packet& pkt)
 #endif
         }
         printf(" %s\n", fstr.c_str());
-        int64_t now = clock_now();
-        if (now - nextFlush >= 0) {
-            nextFlush = now + flushInt;
-            fflush(stdout);
-        }
         ti->t = -t;     //leaves an entry in the TS table to avoid saving this
                         // TSval again, mark it negative to indicate it's been used
     }
@@ -476,10 +460,21 @@ static void help(const char* pname) {
 
 static BaseSniffer* snif = nullptr;
 
+static bool gINTERRUPTED = false; // Has program caught any OS signals
+
+static void flushLoop() {
+    while ( !gINTERRUPTED ) {
+        fflush(stdout);
+        std::this_thread::sleep_for(std::chrono::microseconds(flushInt));
+    }
+}
+
+static std::thread flushLoopThread;
+
 static void signalHandler(int sigVal) {
     if (snif) {
         snif->stop_sniff();
-        std::cout << std::endl;
+        gINTERRUPTED = true;
     }
 }
 
@@ -552,12 +547,15 @@ int main(int argc, char* const* argv)
         }
     }
     if (liveInp && machineReadable) {
-        // output every 100ms when piping to analysis/display program
-        flushInt /= 10;
+        // output every ~10ms when piping to analysis/display program
+        flushInt /= 100;
     }
-    nextFlush = clock_now() + flushInt;
 
     double nxtSum = 0., nxtClean = 0.;
+
+    // Start stdout flush loop
+    flushLoopThread = std::thread(flushLoop);
+    std::cerr << "Output interval is: " << flushInt << " us" << std::endl;
 
     for (const auto& packet : *snif) {
         process_packet(packet);
@@ -589,6 +587,9 @@ int main(int argc, char* const* argv)
 
     // Force clean-up of all data structures by adding to capTm
     cleanUp(capTm + (tsvalMaxAge > flowMaxIdle ? tsvalMaxAge : flowMaxIdle) + 1);
+
+    flushLoopThread.join();
+    std::cout << std::endl;
 
     exit(0);
 }
