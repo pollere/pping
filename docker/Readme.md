@@ -28,7 +28,7 @@ The docker container starts up with the build.sh script. Docker doesn't elegantl
 
 *Having a docker CMD (start command) that's on a mounted volume, of course goes against everything the docker developers stand for. Docker has matured, maybe next time I'll do it differently. For now **this way saves a lot of time, space and effort.**  :-p*
  
-Update: Look! Binaries! They may or may not work... they work on my machines... I have accidentally committed them from my build. 
+Update: Look! Static binaries! You will need a compatible libc to run them. 
 
     $ shasum pping* dns-stats*
     7b1234a310360de46e0ec5e5a6ee9dd0f712a3dc  pping-16.04
@@ -46,8 +46,8 @@ Copy and paste this in your terminal:
 And then try it out:
 
     # ip link # find the interface you want to monitor, then...
-    # sudo LD_LIBRARY_PATH=. ./pping -i eth0 -f "not tcp port 22"
-
+    # sudo ./pping -i eth0 -f "not tcp port 22"                    # static build
+    # sudo LD_LIBRARY_PATH=. ./pping -i eth0 -f "not tcp port 22"  # dynamic build
 
 #### Footnote
 
