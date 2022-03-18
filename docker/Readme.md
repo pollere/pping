@@ -30,15 +30,18 @@ The docker container starts up with the build.sh script. Docker doesn't elegantl
  
 Update: Look! Binaries! They may or may not work... they work on my machines... I have accidentally committed them from my build. 
 
-    # shasum dns-stats pping
-    12b16a1640983820bee65ae7491f79a800fd1abf  dns-stats
-    7b1234a310360de46e0ec5e5a6ee9dd0f712a3dc  pping
+    $ shasum pping* dns-stats*
+    7b1234a310360de46e0ec5e5a6ee9dd0f712a3dc  pping-16.04
+    5df6bfdf3727932af6706481744fd0d8ca4f6e81  pping-20.04
+    12b16a1640983820bee65ae7491f79a800fd1abf  dns-stats-16.04
+    f59202ef7dd1be4b796d41a3305c15836bda08a1  dns-stats-20.04
+
 
 #### No build!
 
 Copy and paste this in your terminal:
 
-    wget 'https://github.com/dagelf/pping/blob/master/docker/pping?raw=true' -O pping && shasum pping|grep 7b1234a310360de46e0ec5e5a6ee9dd0f712a3dc && (chmod +x pping; echo "OK!") || echo "Please mail me this binary so we can see what nefarious changes slipped into it in the dark corners of the internet on its way to you... O_o End of the world kind of stuff, either that, or bit rot, better take a look!" # congratulations, now if only everyone checked random web script like you... this only counts if you're reading this on github.com of course. Wow, I'm overthinking things... India rubbed off on me. Or maybe it's all the singing and rural animal noises outside. 
+    wget 'https://github.com/dagelf/pping/blob/master/docker/pping-16.04?raw=true' -O pping && shasum pping|grep 7b1234a310360de46e0ec5e5a6ee9dd0f712a3dc && (chmod +x pping; echo "OK!") || echo "Please mail me this binary so we can see what nefarious changes slipped into it in the dark corners of the internet on its way to you... O_o End of the world kind of stuff, either that, or bit rot, better take a look!" # congratulations, now if only everyone checked random web script like you... this only counts if you're reading this on github.com of course. Wow, I'm overthinking things... India rubbed off on me. Or maybe it's all the singing and rural animal noises outside. 
 
 And then try it out:
 
