@@ -1,3 +1,3 @@
-FROM ubuntu:16.04
+FROM ubuntu:20.04
 
-RUN apt-get update && apt-get -y install libpcap-dev cmake libboost-dev g++ wget git
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y install libpcap-dev cmake libboost-dev g++ wget git
