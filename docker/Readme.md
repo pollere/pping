@@ -43,7 +43,9 @@ Copy and paste this in your terminal:
 And then try it out:
 
     # ip link # find the interface you want to monitor, then...
+    # export LD_LIBRARY_PATH=. # might be necessary
     # sudo ./pping -i eth0 -f "not tcp port 22"
+
 
 #### Footnote
 
