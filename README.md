@@ -85,3 +85,12 @@ Since pping outputs one line per packet, if it's being run on a busy
 interface its output should be redirected to a file or piped to a
 summarization or plotting utility. In the latter case, the `-m`
 (machine-friendly output format) might be useful.
+
+
+## Output to Mongo database ##
+
+pping can be set up to output to a Mongo database. The compile flag USE_DB
+must be set and the mongo c++ library installed
+(https://mongodb.github.io/mongo-cxx-driver/). Once a mongo database instance
+is running, pping is invoked with the -d flag and given the uri. If this is
+not of interest, don't compile with the USE_DB flag.
