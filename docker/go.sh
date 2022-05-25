@@ -1,5 +1,5 @@
 #!/bin/sh 
-[ "$1" = "static" ] && B=static || B=dynamic
+[ "$1" = "dynamic" ] && B=dynamic || B=static
 E=docker-container-$B.id
 ./get.sh 
 echo Building "$B"ally...
