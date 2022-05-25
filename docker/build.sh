@@ -20,7 +20,7 @@ false && (
 fi; 
 
 echo Building tins...
-if [ -n "$ECHO" ] ||  \! -d /usr/src/build ]; then
+if [ -n "$ECHO" ] ||  [ \! -d /usr/src/build ]; then
  $ECHO mkdir /usr/src/build
  $ECHO cd /usr/src/build
  if [ "$BUILD" = "static" ]; then
