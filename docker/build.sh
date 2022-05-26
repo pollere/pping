@@ -31,6 +31,7 @@ if [ -n "$ECHO" ] ||  [ \! -d /usr/src/build ]; then
 fi
 $ECHO cd /usr/src/build
 $ECHO make -j$(nproc)  # fixme 
+$ECHO strip libtins.so.*
 
 echo Building tins example dns_stats...
 if [ "$BUILD" = "static" ]; then
