@@ -12,6 +12,8 @@ from the Internet).
 
 For more information on pping, please visit http://pollere.net/pping.html
 
+For on-going work that incorporates the pping approach, see: https://github.com/thebracket/cpumap-pping
+
 ## Compiling ##
 
 ### Prerequisites
