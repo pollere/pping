@@ -2,7 +2,7 @@
 # (typically /usr/local unless overridden when tins built)
 LIBTINS = $(HOME)/src/libtins
 CPPFLAGS += -I$(LIBTINS)/include
-LDFLAGS += -L$(LIBTINS)/lib -ltins -lpcap
+LDFLAGS += -L$(LIBTINS)/lib -ltins -lpcap -lpthread
 CXXFLAGS += -std=c++14 -g -O3 -Wall
 
 pping:  pping.cpp
