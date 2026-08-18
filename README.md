@@ -12,7 +12,25 @@ from the Internet).
 
 For more information on pping, please visit http://pollere.net/pping.html
 
-For on-going work that incorporates the pping approach within an ISP, see: https://github.com/thebracket/cpumap-pping
+For work that incorporates the pping approach within an ISP, see: https://github.com/thebracket/cpumap-pping
+
+Pollere work on pping is no longer active. Other and on-going  related work (courtesy of the fine folks on the bloat list bloat@lists.bufferbloat.net):
+
+- https://datatracker.ietf.org/meeting/116/materials/slides-116-maprg-efficient-continuous-latency-monitoring-with-ebpf
+- https://research.redhat.com/blog/article/passive-network-monitoring-with-ebpf/
+- https://github.com/xdp-project/bpf-examples/tree/main/pping
+- https://github.com/LibreQoE/LibreQoS/tree/main/src/rust/lqos_sys/src/bpf/common
+
+* Spindump: User space (libpcap) continues latency monitoring with
+   support for multiple protocols (TCP, QUIC, COAP, DNS, ICMP, and
+   SCTP). Code at: https://github.com/EricssonResearch/spindump
+ * Dart: P4 solution for Intel Tofino switches that passively monitors
+   TCP RTT. Paper at https://doi.org/10.1145/3544216.3544222, code
+   at https://github.com/SatadalSengupta/sigcomm22-paper67-artifacts
+ * bcc-tools/tcprtt: A small utility that's part of the BCC-tools
+   (https://github.com/iovisor/bcc/tree/master/tools) repository that
+   reports the kernel's own sRTT estimate for each received TCP packet
+   (so only works for TCP connections to/from the monitored host).
 
 ## Compiling ##
 
