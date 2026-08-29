@@ -22,7 +22,7 @@
     pping -i interfacename
  or
     pping -r pcapfilename
- 
+
  Typing pping without arguments gives a list of available optional arguments.
 
  Computes the round trip delay captured packets experience between
@@ -45,14 +45,14 @@
  standard output with the format:
     packet capture time (time this round trip delay was observed)
     round trip delay
-    shortest round trip delay seen so far for this flow 
+    shortest round trip delay seen so far for this flow
     flow in the form:  srcIP:port+dstIP:port
 
  For continued live use, output may be redirected to a file or
  piped to some sort of display or summarization widget.
 
  More information on pping is available at pollere.net/pping
- 
+
   ***********************************************************************/
 
 #define __STDC_FORMAT_MACROS
@@ -71,6 +71,9 @@
 #include <utility>
 #include <cmath>
 #include "tins/tins.h"
+#include <signal.h>
+#include <thread>
+#include <chrono>
 
 using namespace Tins;
 
@@ -129,8 +132,7 @@ static int pktCnt, not_tcp, no_TS, not_v4or6, uniDir;
 static std::string localIP;         // ignore pp through this address
 static bool filtLocal = true;
 static std::string filter("tcp");    // default bpf filter
-static int64_t flushInt = 1 << 20;  // stdout flush interval (~uS)
-static int64_t nextFlush;       // next stdout flush time (~uS)
+static int64_t flushInt = 1000000;  // stdout flush interval (~uS)
 
 
 // save capture time of packet using its flow + TSval as key.  If key
@@ -143,13 +145,18 @@ static int64_t nextFlush;       // next stdout flush time (~uS)
 
 static inline void addTS(const std::string& key, tsInfo* ti)
 {
+    bool empSuccess = false;
 #ifdef __cpp_lib_unordered_map_try_emplace
-    tsTbl.try_emplace(key, ti);
+    empSuccess = tsTbl.try_emplace(key, ti).second;
 #else
     if (tsTbl.count(key) == 0) {
-        tsTbl.emplace(key, ti);
+        empSuccess = tsTbl.emplace(key, ti).second;
     }
 #endif
+
+    // Check if emplace succeeded; delete object if it did not
+    if (!empSuccess)
+        delete ti;
 }
 
 // A packet's ECR (timestamp echo reply) should match the TSval of some
@@ -186,7 +193,7 @@ static std::string fmtTimeDiff(double dt)
     } else if (dt < 1) {
         dt *= 1e3;
         SIprefix = "m";
-    } 
+    }
     const char* fmt;
     if (dt < 10.) {
         fmt = "%.2lf%ss";
@@ -200,21 +207,9 @@ static std::string fmtTimeDiff(double dt)
     return buf;
 }
 
-/*
- * return (approximate) time in a 64bit fixed point integer with the
- * binary point at bit 20. High accuracy isn't needed (this time is
- * only used to control output flushing) so time is stretched ~5%
- * ((1024^2)/1e6) to avoid a 64 bit multiply.
- */
-static int64_t clock_now(void) {
-    struct timeval tv;
-    gettimeofday(&tv, nullptr);
-    return (int64_t(tv.tv_sec) << 20) | tv.tv_usec;
-}
-
 static void process_packet(const Packet& pkt)
 {
-    u_int32_t rcv_tsval, rcv_tsecr;
+    u_int32_t rcv_tsval = 0, rcv_tsecr = 0;
     std::string srcstr, dststr, ipsstr, ipdstr;
 
     pktCnt++;
@@ -274,7 +269,7 @@ static void process_packet(const Packet& pkt)
     if (flows.count(fstr) == 0u) {
         if (flowCnt > maxFlows) {
             // stop adding flows till something goes away
-            return; 
+            return;
         }
         fr = new flowRec(fstr);
         flowCnt++;
@@ -309,7 +304,7 @@ static void process_packet(const Packet& pkt)
 	// this packet is the return "pping" --
         // process it for packet's src
         double t = ti->t;
-        double rtt = capTm - t;
+        double rtt = capTm - t; // RTT of src to capture point
         if (fr->min > rtt) {
             fr->min = rtt;       //track minimum
         }
@@ -336,11 +331,6 @@ static void process_packet(const Packet& pkt)
 #endif
         }
         printf(" %s\n", fstr.c_str());
-        int64_t now = clock_now();
-        if (now - nextFlush >= 0) {
-            nextFlush = now + flushInt;
-            fflush(stdout);
-        }
         ti->t = -t;     //leaves an entry in the TS table to avoid saving this
                         // TSval again, mark it negative to indicate it's been used
     }
@@ -349,9 +339,9 @@ static void process_packet(const Packet& pkt)
 static void cleanUp(double n)
 {
     // erase entry if its TSval was seen more than tsvalMaxAge
-    // seconds in the past. 
+    // seconds in the past.
     for (auto it = tsTbl.begin(); it != tsTbl.end();) {
-        if (capTm - std::abs(it->second->t) > tsvalMaxAge) {
+        if (n - std::abs(it->second->t) > tsvalMaxAge) {
             delete it->second;
             it = tsTbl.erase(it);
         } else {
@@ -438,7 +428,7 @@ static void help(const char* pname) {
 "  -r|--read pcap     process capture file <pcap>\n"
 "\n"
 "  -f|--filter expr   pcap filter applied to packets.\n"
-"                     Eg., \"-f 'net 74.125.0.0/16 or 45.57.0.0/17'\"\n" 
+"                     Eg., \"-f 'net 74.125.0.0/16 or 45.57.0.0/17'\"\n"
 "                     only shows traffic to/from youtube or netflix.\n"
 "\n"
 "  -m|--machine       'machine readable' output format suitable\n"
@@ -468,8 +458,36 @@ static void help(const char* pname) {
 ;
 }
 
+static BaseSniffer* snif = nullptr;
+
+static bool gINTERRUPTED = false; // Has program caught any OS signals
+
+static void flushLoop() {
+    while ( !gINTERRUPTED ) {
+        fflush(stdout);
+        std::this_thread::sleep_for(std::chrono::microseconds(flushInt));
+    }
+}
+
+static std::thread flushLoopThread;
+
+static void signalHandler(int sigVal) {
+    if (snif) {
+        snif->stop_sniff();
+        gINTERRUPTED = true;
+    }
+}
+
 int main(int argc, char* const* argv)
 {
+    // Set up signal catching
+    struct sigaction action;
+    action.sa_handler = signalHandler;
+    action.sa_flags = 0;
+    sigemptyset (&action.sa_mask);
+    sigaction (SIGINT, &action, NULL);
+    sigaction (SIGTERM, &action, NULL);
+
     bool liveInp = false;
     std::string fname;
     if (argc <= 1) {
@@ -499,7 +517,6 @@ int main(int argc, char* const* argv)
         exit(1);
     }
 
-    BaseSniffer* snif;
     {
         SnifferConfiguration config;
         config.set_filter(filter);
@@ -522,16 +539,23 @@ int main(int argc, char* const* argv)
             }
         } catch (std::exception& ex) {
             std::cerr << "Couldn't open " << fname << ": " << ex.what() << "\n";
+            if (snif != nullptr) {
+                delete snif;
+            }
+
             exit(EXIT_FAILURE);
         }
     }
     if (liveInp && machineReadable) {
-        // output every 100ms when piping to analysis/display program
-        flushInt /= 10;
+        // output every ~10ms when piping to analysis/display program
+        flushInt /= 100;
     }
-    nextFlush = clock_now() + flushInt;
 
     double nxtSum = 0., nxtClean = 0.;
+
+    // Start stdout flush loop
+    flushLoopThread = std::thread(flushLoop);
+    std::cerr << "Output interval is: " << flushInt << " us" << std::endl;
 
     for (const auto& packet : *snif) {
         process_packet(packet);
@@ -560,6 +584,12 @@ int main(int argc, char* const* argv)
             nxtClean = capTm + tsvalMaxAge;
         }
     }
+
+    // Force clean-up of all data structures by adding to capTm
+    cleanUp(capTm + (tsvalMaxAge > flowMaxIdle ? tsvalMaxAge : flowMaxIdle) + 1);
+
+    flushLoopThread.join();
+    std::cout << std::endl;
 
     exit(0);
 }
