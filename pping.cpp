@@ -172,7 +172,7 @@ static inline tsInfo* getTStm(const std::string& key)
     try {
         tsInfo* ti = tsTbl.at(key);
         return ti;
-    } catch (std::out_of_range) {
+    } catch (std::out_of_range&) {
         return nullptr;
     }
 }
